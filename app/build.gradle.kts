@@ -62,10 +62,10 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.storage)
-    implementation(libs.firebase.analytics)
     implementation(libs.firebase.messaging)
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.google.auth)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.okhttp)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.10.2")
 }

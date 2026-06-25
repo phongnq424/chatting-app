@@ -31,7 +31,11 @@ import com.google.android.gms.common.api.ApiException
 import com.google.firebase.messaging.FirebaseMessaging
 
 @Composable
-fun LoginScreen(viewModel: AuthViewModel, onLoginSuccess: () -> Unit) {
+fun LoginScreen(
+    viewModel: AuthViewModel,
+    onLoginSuccess: () -> Unit,
+    onNavigateToRegister: () -> Unit
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
@@ -58,12 +62,11 @@ fun LoginScreen(viewModel: AuthViewModel, onLoginSuccess: () -> Unit) {
             FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val token = task.result
-                    // Cập nhật token cho User vừa mới login xong
                     viewModel.updateFCMToken(token)
                 }
 
-                // Sau khi thực hiện xong (hoặc kể cả lỗi lấy token) thì mới chuyển màn hình
                 Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                viewModel.resetLoginSuccess()
                 onLoginSuccess()
             }
         }
@@ -91,7 +94,7 @@ fun LoginScreen(viewModel: AuthViewModel, onLoginSuccess: () -> Unit) {
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Don't have an account?", style = MaterialTheme.typography.bodySmall)
-                TextButton(onClick = { /* Chuyển sang Register */ }) {
+                TextButton(onClick = onNavigateToRegister) {
                     Text("Get Started", color = Color(0xFF9181F4))
                 }
             }
