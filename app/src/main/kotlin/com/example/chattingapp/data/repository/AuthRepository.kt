@@ -1,5 +1,6 @@
 package com.example.chattingapp.data.repository
 
+import android.net.Uri
 import com.example.chattingapp.data.model.UserDto
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.GoogleAuthProvider
@@ -7,8 +8,11 @@ import com.google.firebase.auth.userProfileChangeRequest
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.tasks.await
 
-class AuthRepository {
+class AuthRepository(
+    private val cloudinaryRepository: CloudinaryRepository
+) {
 
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
@@ -109,6 +113,32 @@ class AuthRepository {
                 ),
                 SetOptions.merge()
             )
+    }
+
+    suspend fun updateAvatar(imageUri: Uri): String {
+        val user = auth.currentUser
+            ?: throw IllegalStateException("Người dùng chưa đăng nhập")
+
+        val avatarUrl = cloudinaryRepository.uploadAvatar(imageUri)
+
+        val profileUpdates = userProfileChangeRequest {
+            photoUri = Uri.parse(avatarUrl)
+        }
+
+        user.updateProfile(profileUpdates).await()
+
+        db.collection("users")
+            .document(user.uid)
+            .set(
+                mapOf(
+                    "photoUrl" to avatarUrl,
+                    "updatedAt" to FieldValue.serverTimestamp()
+                ),
+                SetOptions.merge()
+            )
+            .await()
+
+        return avatarUrl
     }
 
     fun updateDisplayName(newName: String, onResult: (String?) -> Unit) {

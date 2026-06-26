@@ -1,6 +1,9 @@
 package com.example.chattingapp.ui.screens.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,11 +16,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.chattingapp.viewmodel.AuthViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -27,29 +33,41 @@ fun ProfileScreen(
     onBack: () -> Unit
 ) {
     val user = authViewModel.currentUser
+    val isLoading by authViewModel.isLoading
+    val avatarUrl by authViewModel.avatarUrl
 
-    // --- CÁC TRẠNG THÁI MỚI ---
-    var isEditing by remember { mutableStateOf(false) } // Đang sửa hay không?
-    var editedName by remember { mutableStateOf(user?.displayName ?: "") } // Tên mới nhập vào
-    val isLoading by authViewModel.isLoading // Lấy trạng thái loading từ ViewModel
+    var isEditing by remember { mutableStateOf(false) }
+    var editedName by remember { mutableStateOf(user?.displayName ?: "") }
+
+    val imagePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            authViewModel.updateAvatar(uri)
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Hồ sơ cá nhân", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text("Hồ sơ cá nhân", fontWeight = FontWeight.Bold)
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
                     }
                 },
-                // Thêm nút hành động ở góc phải TopBar
                 actions = {
                     if (isEditing) {
-                        // Nút LƯU khi đang ở chế độ sửa
                         TextButton(
+                            enabled = !isLoading,
                             onClick = {
                                 authViewModel.updateName(editedName) {
-                                    isEditing = false // Sửa xong thì tắt chế độ sửa
+                                    isEditing = false
                                 }
                             }
                         ) {
@@ -60,17 +78,26 @@ fun ProfileScreen(
                                     color = Color(0xFF9181F4)
                                 )
                             } else {
-                                Text("LƯU", color = Color(0xFF9181F4), fontWeight = FontWeight.Bold)
+                                Text(
+                                    "LƯU",
+                                    color = Color(0xFF9181F4),
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     } else {
-                        // Nút SỬA khi đang ở chế độ xem
                         IconButton(onClick = { isEditing = true }) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF9181F4))
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                tint = Color(0xFF9181F4)
+                            )
                         }
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White
+                )
             )
         }
     ) { paddingValues ->
@@ -82,26 +109,69 @@ fun ProfileScreen(
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // Avatar
-            Surface(
-                modifier = Modifier.size(120.dp),
-                shape = CircleShape,
-                color = Color(0xFF9181F4),
-                shadowElevation = 4.dp
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(
-                        text = (user?.displayName ?: "U").take(1).uppercase(),
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White
-                    )
+            Box(contentAlignment = Alignment.BottomEnd) {
+                Surface(
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = !isLoading) {
+                            imagePickerLauncher.launch("image/*")
+                        },
+                    shape = CircleShape,
+                    color = Color(0xFF9181F4),
+                    shadowElevation = 4.dp
+                ) {
+                    if (avatarUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = avatarUrl,
+                            contentDescription = "Avatar",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = (user?.displayName ?: "U").take(1).uppercase(),
+                                fontSize = 48.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier.size(36.dp),
+                    shape = CircleShape,
+                    color = Color.White,
+                    shadowElevation = 3.dp
+                ) {
+                    IconButton(
+                        enabled = !isLoading,
+                        onClick = {
+                            imagePickerLauncher.launch("image/*")
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = "Change avatar",
+                            tint = Color(0xFF9181F4),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Thẻ thông tin
+            Text(
+                text = if (isLoading) "Đang cập nhật..." else "Bấm vào ảnh để đổi ảnh đại diện",
+                color = Color.Gray,
+                fontSize = 13.sp
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
@@ -109,7 +179,6 @@ fun ProfileScreen(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    // PHẦN TÊN: Nếu đang sửa thì hiện TextField, không thì hiện Text bình thường
                     if (isEditing) {
                         OutlinedTextField(
                             value = editedName,
@@ -127,14 +196,19 @@ fun ProfileScreen(
                         )
                     }
 
-                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp), thickness = 0.5.dp)
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        thickness = 0.5.dp
+                    )
 
-                    // PHẦN EMAIL: Không cho sửa (thường email là định danh cố định)
-                    InfoRow(icon = Icons.Default.Email, label = "Địa chỉ Email", value = user?.email ?: "")
+                    InfoRow(
+                        icon = Icons.Default.Email,
+                        label = "Địa chỉ Email",
+                        value = user?.email ?: ""
+                    )
                 }
             }
 
-            // Hiển thị lỗi nếu có (lấy từ ViewModel)
             authViewModel.errorMessage.value?.let { error ->
                 Text(
                     text = error,
@@ -145,22 +219,48 @@ fun ProfileScreen(
             }
 
             Spacer(modifier = Modifier.weight(1f))
-            Text(text = "Phiên bản ứng dụng 1.0.0", color = Color.Gray, fontSize = 12.sp)
+
+            Text(
+                text = "Phiên bản ứng dụng 1.0.0",
+                color = Color.Gray,
+                fontSize = 12.sp
+            )
         }
     }
 }
 
 @Composable
-fun InfoRow(icon: ImageVector, label: String, value: String) {
+fun InfoRow(
+    icon: ImageVector,
+    label: String,
+    value: String
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = Color(0xFF9181F4), modifier = Modifier.size(24.dp))
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = Color(0xFF9181F4),
+            modifier = Modifier.size(24.dp)
+        )
+
         Spacer(modifier = Modifier.width(16.dp))
+
         Column {
-            Text(text = label, fontSize = 12.sp, color = Color.Gray)
-            Text(text = value, fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = Color.Black)
+            Text(
+                text = label,
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+
+            Text(
+                text = value,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.Black
+            )
         }
     }
 }

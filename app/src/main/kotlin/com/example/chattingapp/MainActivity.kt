@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import com.example.chattingapp.core.navigation.AppNavGraph
 import com.example.chattingapp.core.navigation.NavRoutes
 import com.example.chattingapp.data.repository.AuthRepository
+import com.example.chattingapp.data.repository.CloudinaryRepository
 import com.example.chattingapp.data.repository.ConversationRepository
 import com.example.chattingapp.data.repository.MessageRepository
 import com.example.chattingapp.data.repository.UserRepository
@@ -26,7 +27,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val authRepository = AuthRepository()
+        val cloudinaryRepository = CloudinaryRepository(applicationContext)
+        val authRepository = AuthRepository(cloudinaryRepository)
         val userRepository = UserRepository()
         val conversationRepository = ConversationRepository()
         val messageRepository = MessageRepository()

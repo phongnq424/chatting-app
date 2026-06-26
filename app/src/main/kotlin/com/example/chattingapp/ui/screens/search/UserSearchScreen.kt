@@ -38,13 +38,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.chattingapp.domain.model.User
+import com.example.chattingapp.ui.common.rememberDebouncedClick
 import com.example.chattingapp.viewmodel.UserSearchViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -56,9 +62,33 @@ fun UserSearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
+    var creatingUserId by remember { mutableStateOf<String?>(null) }
+
+    val isBusy = uiState.isLoading || creatingUserId != null
+
+    val onBackDebounced = rememberDebouncedClick {
+        if (!isBusy) {
+            onBack()
+        }
+    }
+
+    val onSearchDebounced = rememberDebouncedClick {
+        if (!isBusy) {
+            viewModel.searchUsers()
+        }
+    }
+
+    LaunchedEffect(uiState.errorMessage) {
+        if (uiState.errorMessage != null) {
+            creatingUserId = null
+        }
+    }
+
     LaunchedEffect(uiState.createdConversationId) {
         val conversationId = uiState.createdConversationId
+
         if (conversationId != null) {
+            creatingUserId = null
             viewModel.clearCreatedConversation()
             onConversationCreated(conversationId)
         }
@@ -74,7 +104,10 @@ fun UserSearchScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(
+                        enabled = !isBusy,
+                        onClick = onBackDebounced
+                    ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back"
@@ -99,6 +132,7 @@ fun UserSearchScreen(
                 value = uiState.query,
                 onValueChange = viewModel::onQueryChange,
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !isBusy,
                 label = {
                     Text("Nhập email người dùng")
                 },
@@ -109,7 +143,10 @@ fun UserSearchScreen(
                     )
                 },
                 trailingIcon = {
-                    IconButton(onClick = viewModel::searchUsers) {
+                    IconButton(
+                        enabled = !isBusy,
+                        onClick = onSearchDebounced
+                    ) {
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search"
@@ -126,15 +163,15 @@ fun UserSearchScreen(
             Spacer(modifier = Modifier.size(12.dp))
 
             Button(
-                onClick = viewModel::searchUsers,
+                onClick = onSearchDebounced,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !uiState.isLoading,
+                enabled = !isBusy,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF9181F4)
                 ),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                if (uiState.isLoading) {
+                if (uiState.isLoading && creatingUserId == null) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
                         color = Color.White,
@@ -158,9 +195,13 @@ fun UserSearchScreen(
             uiState.users.forEach { user ->
                 UserItem(
                     user = user,
-                    enabled = !uiState.isLoading,
+                    enabled = !isBusy,
+                    isCreating = creatingUserId == user.id,
                     onClick = {
-                        viewModel.createDirectConversation(user)
+                        if (!isBusy) {
+                            creatingUserId = user.id
+                            viewModel.createDirectConversation(user)
+                        }
                     }
                 )
 
@@ -174,12 +215,20 @@ fun UserSearchScreen(
 private fun UserItem(
     user: User,
     enabled: Boolean,
+    isCreating: Boolean,
     onClick: () -> Unit
 ) {
+    val onClickDebounced = rememberDebouncedClick {
+        onClick()
+    }
+
     ListItem(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick),
+            .clickable(
+                enabled = enabled,
+                onClick = onClickDebounced
+            ),
         leadingContent = {
             Surface(
                 modifier = Modifier
@@ -187,12 +236,21 @@ private fun UserItem(
                     .clip(CircleShape),
                 color = Color(0xFF9181F4)
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        tint = Color.White
+                if (user.photoUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = user.photoUrl,
+                        contentDescription = "Avatar",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = null,
+                            tint = Color.White
+                        )
+                    }
                 }
             }
         },
@@ -209,11 +267,19 @@ private fun UserItem(
             )
         },
         trailingContent = {
-            Text(
-                text = "Nhắn tin",
-                color = Color(0xFF9181F4),
-                style = MaterialTheme.typography.labelMedium
-            )
+            if (isCreating) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    color = Color(0xFF9181F4),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "Nhắn tin",
+                    color = Color(0xFF9181F4),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
     )
 }

@@ -1,9 +1,12 @@
 package com.example.chattingapp.viewmodel
 
+import android.net.Uri
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.chattingapp.data.repository.AuthRepository
 import com.google.firebase.auth.FirebaseUser
+import kotlinx.coroutines.launch
 
 class AuthViewModel(
     private val repo: AuthRepository
@@ -12,6 +15,7 @@ class AuthViewModel(
     var isLoading = mutableStateOf(false)
     var loginSuccess = mutableStateOf(false)
     var errorMessage = mutableStateOf<String?>(null)
+    var avatarUrl = mutableStateOf(repo.getCurrentUser()?.photoUrl?.toString() ?: "")
 
     val currentUser: FirebaseUser?
         get() = repo.getCurrentUser()
@@ -28,6 +32,7 @@ class AuthViewModel(
             isLoading.value = false
 
             if (error == null) {
+                syncCurrentUserState()
                 loginSuccess.value = true
                 errorMessage.value = null
             } else {
@@ -53,6 +58,7 @@ class AuthViewModel(
             isLoading.value = false
 
             if (error == null) {
+                syncCurrentUserState()
                 loginSuccess.value = true
                 errorMessage.value = null
             } else {
@@ -69,9 +75,11 @@ class AuthViewModel(
             isLoading.value = false
             loginSuccess.value = false
             errorMessage.value = null
+            avatarUrl.value = ""
             onComplete()
         }
     }
+
     fun onGoogleSignInResult(idToken: String) {
         isLoading.value = true
 
@@ -79,11 +87,28 @@ class AuthViewModel(
             isLoading.value = false
 
             if (error == null) {
+                syncCurrentUserState()
                 loginSuccess.value = true
                 errorMessage.value = null
             } else {
                 loginSuccess.value = false
                 errorMessage.value = error
+            }
+        }
+    }
+
+    fun updateAvatar(imageUri: Uri) {
+        isLoading.value = true
+
+        viewModelScope.launch {
+            try {
+                val newAvatarUrl = repo.updateAvatar(imageUri)
+                avatarUrl.value = newAvatarUrl
+                errorMessage.value = null
+            } catch (e: Exception) {
+                errorMessage.value = e.localizedMessage ?: "Lỗi cập nhật ảnh đại diện"
+            } finally {
+                isLoading.value = false
             }
         }
     }
@@ -118,5 +143,9 @@ class AuthViewModel(
 
     fun resetLoginSuccess() {
         loginSuccess.value = false
+    }
+
+    private fun syncCurrentUserState() {
+        avatarUrl.value = repo.getCurrentUser()?.photoUrl?.toString() ?: ""
     }
 }
