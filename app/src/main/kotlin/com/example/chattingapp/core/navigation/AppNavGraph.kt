@@ -18,6 +18,7 @@ import com.example.chattingapp.data.repository.AuthRepository
 import com.example.chattingapp.data.repository.ConversationRepository
 import com.example.chattingapp.data.repository.MessageRepository
 import com.example.chattingapp.data.repository.UserRepository
+import com.example.chattingapp.domain.usecase.DeleteMessageUseCase
 import com.example.chattingapp.domain.usecase.MarkAsReadUseCase
 import com.example.chattingapp.domain.usecase.ObserveConversationsUseCase
 import com.example.chattingapp.domain.usecase.ObserveMessagesUseCase
@@ -60,6 +61,7 @@ fun AppNavGraph(
     val observeMessagesUseCase = ObserveMessagesUseCase(messageRepository)
     val sendMessageUseCase = SendMessageUseCase(messageRepository)
     val markAsReadUseCase = MarkAsReadUseCase(conversationRepository)
+    val deleteMessageUseCase = DeleteMessageUseCase(messageRepository)
 
     val lastNavigationTime = remember { mutableLongStateOf(0L) }
 
@@ -252,7 +254,8 @@ fun AppNavGraph(
                             authRepository = authRepository,
                             observeMessagesUseCase = observeMessagesUseCase,
                             sendMessageUseCase = sendMessageUseCase,
-                            markAsReadUseCase = markAsReadUseCase
+                            markAsReadUseCase = markAsReadUseCase,
+                            deleteMessageUseCase = deleteMessageUseCase
                         ) as T
                     }
                 }
