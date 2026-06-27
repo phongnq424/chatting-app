@@ -178,4 +178,14 @@ class ConversationRepository {
         val sorted = listOf(userA, userB).sorted()
         return "direct_${sorted[0]}_${sorted[1]}"
     }
+
+    suspend fun getConversationById(conversationId: String): Conversation? {
+        val snapshot = db.collection("conversations")
+            .document(conversationId)
+            .get()
+            .await()
+
+        return snapshot.toObject(ConversationDto::class.java)
+            ?.toDomain(fallbackId = snapshot.id)
+    }
 }

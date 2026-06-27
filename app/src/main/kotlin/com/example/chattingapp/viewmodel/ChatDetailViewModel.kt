@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import com.example.chattingapp.data.repository.ConversationRepository
+import com.example.chattingapp.data.repository.UserRepository
+import com.example.chattingapp.domain.model.ConversationType
 
 data class ChatDetailUiState(
     val currentUserId: String = "",
@@ -20,12 +23,21 @@ data class ChatDetailUiState(
     val inputText: String = "",
     val isSending: Boolean = false,
     val deletingMessageIds: Set<String> = emptySet(),
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val chatHeader: ChatHeaderUiState = ChatHeaderUiState(),
+)
+
+data class ChatHeaderUiState(
+    val title: String = "Chat",
+    val photoUrl: String = "",
+    val isGroup: Boolean = false
 )
 
 class ChatDetailViewModel(
     private val conversationId: String,
     private val authRepository: AuthRepository,
+    private val conversationRepository: ConversationRepository,
+    private val userRepository: UserRepository,
     private val observeMessagesUseCase: ObserveMessagesUseCase,
     private val sendMessageUseCase: SendMessageUseCase,
     private val markAsReadUseCase: MarkAsReadUseCase,
@@ -41,12 +53,73 @@ class ChatDetailViewModel(
     val uiState: StateFlow<ChatDetailUiState> = _uiState.asStateFlow()
 
     init {
+        loadChatHeader()
         observeMessages()
         markConversationAsRead()
     }
 
     fun onInputChange(value: String) {
         _uiState.value = _uiState.value.copy(inputText = value)
+    }
+
+    private fun loadChatHeader() {
+        val currentUserId = authRepository.getCurrentUser()?.uid.orEmpty()
+
+        viewModelScope.launch {
+            try {
+                val conversation = conversationRepository.getConversationById(conversationId)
+
+                if (conversation == null) {
+                    _uiState.value = _uiState.value.copy(
+                        chatHeader = ChatHeaderUiState(
+                            title = "Chat",
+                            photoUrl = ""
+                        )
+                    )
+                    return@launch
+                }
+
+                val header = when (conversation.type) {
+                    ConversationType.DIRECT -> {
+                        val otherUserId = conversation.memberIds
+                            .firstOrNull { it != currentUserId }
+
+                        val otherUser = otherUserId?.let { userId ->
+                            userRepository.getUserById(userId)
+                        }
+
+                        ChatHeaderUiState(
+                            title = otherUser?.displayName
+                                ?.takeIf { it.isNotBlank() }
+                                ?: otherUser?.email
+                                    ?.takeIf { it.isNotBlank() }
+                                ?: "Người dùng",
+                            photoUrl = otherUser?.photoUrl.orEmpty(),
+                            isGroup = false
+                        )
+                    }
+
+                    ConversationType.GROUP -> {
+                        ChatHeaderUiState(
+                            title = conversation.title.ifBlank { "Nhóm chat" },
+                            photoUrl = conversation.photoUrl,
+                            isGroup = true
+                        )
+                    }
+                }
+
+                _uiState.value = _uiState.value.copy(
+                    chatHeader = header
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    chatHeader = ChatHeaderUiState(
+                        title = "Chat",
+                        photoUrl = ""
+                    )
+                )
+            }
+        }
     }
 
     fun sendMessage() {

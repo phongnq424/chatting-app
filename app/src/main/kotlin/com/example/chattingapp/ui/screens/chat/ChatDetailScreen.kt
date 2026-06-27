@@ -54,6 +54,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.TopAppBar
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextOverflow
+import coil.compose.AsyncImage
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,11 +79,11 @@ fun ChatDetailScreen(
 
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
+            TopAppBar(
                 title = {
-                    Text(
-                        text = "Chat",
-                        fontWeight = FontWeight.Bold
+                    ChatHeader(
+                        title = uiState.chatHeader.title,
+                        photoUrl = uiState.chatHeader.photoUrl
                     )
                 },
                 navigationIcon = {
@@ -87,7 +94,7 @@ fun ChatDetailScreen(
                         )
                     }
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White
                 )
             )
@@ -343,5 +350,56 @@ private fun MessageBubble(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun ChatHeader(
+    title: String,
+    photoUrl: String
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Surface(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primary
+        ) {
+            if (photoUrl.isNotBlank()) {
+                AsyncImage(
+                    model = photoUrl,
+                    contentDescription = "Avatar",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = Color.Black
+            )
+        }
     }
 }

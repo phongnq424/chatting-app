@@ -252,6 +252,8 @@ fun AppNavGraph(
                         return ChatDetailViewModel(
                             conversationId = conversationId,
                             authRepository = authRepository,
+                            conversationRepository = conversationRepository,
+                            userRepository = userRepository,
                             observeMessagesUseCase = observeMessagesUseCase,
                             sendMessageUseCase = sendMessageUseCase,
                             markAsReadUseCase = markAsReadUseCase,
